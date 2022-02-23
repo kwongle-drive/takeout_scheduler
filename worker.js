@@ -1,13 +1,14 @@
 const { isMainThread, Worker, parentPort, workerData } = require('worker_threads');
 const os = require('os')
 const archiver = require('archiver');
-const path = require('path')
+const path = require('path');
+var fs = require('fs');
 const { readdir, lstat, stat } = require('fs').promises
 require("dotenv").config();
 
-//global variables for Main Thread
-const numOfCores = os.cpus.length;
-let curTaskIndex = 0;
+
+const numOfCores = os.cpus.length; //global variables for Main Thread
+let curTaskIndex = 0; //현재 처리중인 작업의 인덱스
 
 //사용자의 Path를 모두 탐색해 모든 파일과 해당 파일들의 사이즈를 가져온다
 let files = []; //사용자의 모든 파일 경로와 해당 파일의 용량
@@ -64,21 +65,31 @@ async function main(tasks) {
         let threadId = 1;
         for (let i = 0; i < filesBySize.length; i++) {
             threads.add(new Worker(__filename, {
-                workerData: { userPath , files: filesBySize[i], threadId } //초기 데이터를 넣어줄 수 있다.
+                workerData: { userPath, dirs, files: filesBySize[i], threadId } //초기 데이터를 넣어줄 수 있다.
             }));
             threadId++;
         }
 
+        //쓰레드 종료 대기
         for (let worker of threads) {
             worker.on('message', (value) => console.log('워커로부터', value));
             worker.on('exit', () => {
                 threads.delete(worker);
                 if (threads.size === 0) {
-                    console.log("워커 끝")
-                    process.send({
-                        success: true,
-                        message: "작업이 잘 끝났음"
-                    });
+                    console.log(curTaskIndex,"번 작업이 끝났음")
+                    if(++curTaskIndex == tasks.length){
+                        process.send({
+                            success: true,
+                            message: "전체 작업이 잘 끝났음"
+                        });
+                    }else{
+                        process.send({
+                            taskout_queue_id: curTask.id,
+                            success: true,
+                            message: `${curTask.id} 작업이 완료되었습니다`
+                        });
+                        main(tasks);
+                    }
                 }
             })
         }
@@ -87,22 +98,36 @@ async function main(tasks) {
 
 //워커 쓰레드
 if (!isMainThread) {
-    var zip = new AdmZip();
-    const {files ,dirs, threadId , userPath} = workerData;
-    files.forEach(dir => {
-        const relativePath =path.relative(userPath, dir);
-        zip.addLocalFile(dir, path.join(relativePath, '../'));
+    const { files, dirs, threadId, userPath } = workerData;
+    var output = fs.createWriteStream(`./${Date.now()}id=${threadId}.zip`);
+    var archive = archiver('zip', {
+        gzip: true,
+        zlib: { level: 9 } // Sets the compression level.
+    });
+    archive.pipe(output);
+
+    //zip에 폴더 뼈대 생성
+    dirs.forEach(dir => {
+        archive.file(".", { name: path.join(dir, '/') });
     })
 
-    
-    zip.writeZip(/*target file name*/ `./${threadId}.zip`);
-    zip.addFile()
-    output.on('close', function() {
+    //zip에 파일 저장
+    files.forEach(dir => {
+        const relativePath = path.relative(userPath, dir);
+        archive.file(dir, { name: relativePath });
+    })
+
+    archive.finalize();
+
+    output.on('close', function () {
         console.log(archive.pointer() + ' total bytes');
         // console.log('archiver has been finalized and the output file descriptor has closed.');
-        console.log(threadId,"번 쓰레드 작업 종료");
-      });
-      
+        console.log("TASK INDEX : " + curTaskIndex + " [" + threadId +"]번 쓰레드 작업 종료");
+    });
+
+    archive.on('error', function (err) {
+        throw err;
+    });
 }
 
 
@@ -116,5 +141,6 @@ process.on('message', async (m) => {
             message: "수행할 테스크가 0개 입니다. 다시 보내주세요"
         });
     }
+    console.log(m.tasks.length);
     await main(m.tasks);
 })
