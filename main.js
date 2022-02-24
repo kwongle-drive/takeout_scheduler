@@ -1,20 +1,9 @@
-const mysql = require('mysql2');  // mysql 모듈 로드
 const path = require('path');
 const { fork } = require('child_process');
-const { timingSafeEqual } = require('crypto');
 require("dotenv").config();
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient()
 
-const conn = {  // mysql 접속 설정
-    host: process.env.DATABASE_HOST,
-    user: process.env.DATABASE_ID,
-    password: process.env.DATABASE_PASS,
-    database: 'kwongledrive'
-};
-
-
-//DB CONNECTION
-const connection = mysql.createConnection(conn); // DB 커넥션 생성
-connection.connect();   // DB 접속
 
 //WORKER NODE JS PROCESS 생성
 const nodefile = path.join(__dirname, 'worker')
@@ -31,20 +20,54 @@ let query = `select tq.id, tq.capacity, tq.expired_at, tq.userId, u.email,d.path
             `;
 
 //쿼리 수행 및 child process에 결과 전송
-const start = () => {connection.query(query, (err, results, fields)=>{
-        if(err){
-            console.log(err);
-        }
+const start = async () => {
+    try{
+        const results = await prisma.$queryRaw`select tq.id, tq.capacity, tq.expired_at, tq.userId, u.email,d.path from takeout_queue tq
+            inner join user u
+            on u.id = tq.userId
+            inner join drive d
+            on d.id = tq.userId
+            limit ${limit}
+        `;
         worker.send(
-            { tasks : results}
+            { tasks: results }
         )
-    })
+    } catch(err){
+        console.log(err);
+    }
 }
+
+
+
 start();
 
+//완료된 작업들 데이터베이스에 저장
+const updateTakeoutStatus = async (takeoutId,takeoutResultPath) => {
+    await prisma.takeout_queue.update({
+        where:{
+            id: takeoutId
+        },
+        data:{
+            finish: true
+        }
+    })
+    for(let i = 0 ; i < takeoutResultPath.length ; i++){
+        await prisma.takeout_result_path.create({
+            data:{
+                takeoutId,
+                path: takeoutResultPath[i]
+            }
+        })
+    }
+}
+
 //event handler
-worker.on('message',(m)=>{
+worker.on('message',async (m) => {
     console.log(m);
+    if(m.success){
+        await updateTakeoutStatus(m.taskout_queue_id, m.takeoutResultPath);
+    }
+    start();
 })
 
 

@@ -1,0 +1,49 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["interactiveTransactions"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model drive {
+  id            Int    @id @default(autoincrement())
+  path          String @unique @db.VarChar(200)
+  totalCapacity Float
+  usingCapacity Float  @default(0)
+  userId        Int    @unique
+  user          user   @relation(fields: [userId], references: [id])
+}
+
+model takeout_queue {
+  id                  Int                   @id @default(autoincrement())
+  capacity            Int
+  finish              Boolean               @default(false)
+  expired_at          DateTime?
+  userId              Int
+  user                user                  @relation(fields: [userId], references: [id])
+  takeout_result_path takeout_result_path[]
+
+  @@index([userId], map: "takeout_queue_userId_fkey")
+}
+
+model takeout_result_path {
+  id            Int           @id @default(autoincrement())
+  USE_YN        Boolean       @default(true)
+  path          String        @db.VarChar(1000)
+  takeoutId     Int
+  takeout_queue takeout_queue @relation(fields: [takeoutId], references: [id])
+
+  @@index([takeoutId], map: "takeout_result_path_takeoutId_fkey")
+}
+
+model user {
+  id            Int             @id @default(autoincrement())
+  email         String          @unique @db.VarChar(50)
+  password      String
+  created_at    DateTime        @default(now())
+  drive         drive?
+  takeout_queue takeout_queue[]
+}
