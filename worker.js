@@ -3,7 +3,7 @@ const os = require('os')
 const archiver = require('archiver');
 const path = require('path');
 var fs = require('fs');
-const { readdir, lstat, stat } = require('fs').promises
+const { readdir, lstat, stat, access, mkdir } = require('fs').promises
 require("dotenv").config();
 
 const numOfCores = os.cpus.length; //global variables for Main Thread
@@ -49,6 +49,7 @@ function filesSeperateWithSize(filesBySize, capacity) {
     filesBySize.push(store);
 }
 
+//메인 쓰레드 작업
 async function main(tasks) {
     if (isMainThread) {
         const threads = new Set();
@@ -58,7 +59,10 @@ async function main(tasks) {
         takeoutResultPath.length = 0;
         files = [];
         dirs = [];
+
+        //고객 드라이브 탐색
         await deepReadDir(userPath, userPath);
+
         //쓰레드당 수행할 테스크 분리
         let filesBySize = [];
         filesSeperateWithSize(filesBySize, curTask.capacity)
@@ -103,11 +107,26 @@ async function main(tasks) {
     }
 }
 
+
 //워커 쓰레드
 if (!isMainThread) {
+    worker();
+}
+async function worker(){
     const { files, dirs, threadId, userPath, takeOutId, userId } = workerData;
+   
+    //해당 사용자의 takeout경로가 존재하는 지 확인후 없으면 경로 생성
+    const userTakeOutPath =path.join(process.env.TAKEOUT_PATH,userId.toString());
+    try {
+        await access(userTakeOutPath, fs.constants.F_OK);
+    } catch (err){
+        await mkdir(userTakeOutPath);
+    }
+
+    //writable steram 생성
     const zipFileName = `takeout-${Date.now()}-${takeOutId}-${threadId}.zip`;
-    var output = fs.createWriteStream(path.join(process.env.TAKEOUT_PATH,userId.toString(),`${zipFileName}.zip`));
+    var output = fs.createWriteStream(path.join(userTakeOutPath,`${zipFileName}`));
+
     var archive = archiver('zip', {
         gzip: true,
         zlib: { level: 9 } // Sets the compression level.
@@ -140,7 +159,6 @@ if (!isMainThread) {
         throw err;
     });
 
-    
 }
 
 

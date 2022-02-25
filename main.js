@@ -16,6 +16,7 @@ let query = `select tq.id, tq.capacity, tq.expired_at, tq.userId, u.email,d.path
             on u.id = tq.userId
             inner join drive d
             on d.id = tq.userId
+            where tq.finish =
             limit ${limit}
             `;
 
