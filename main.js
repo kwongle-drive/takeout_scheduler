@@ -15,8 +15,8 @@ let query = `select tq.id, tq.capacity, tq.expired_at, tq.userId, u.email,d.path
             inner join user u
             on u.id = tq.userId
             inner join drive d
-            on d.id = tq.userId
-            where tq.finish = 0
+            on d.userId = tq.userId
+            where tq.finish = false
             limit ${limit}
             `;
 
@@ -24,12 +24,12 @@ let query = `select tq.id, tq.capacity, tq.expired_at, tq.userId, u.email,d.path
 const start = async () => {
     try{
         const results = await prisma.$queryRaw`select tq.id, tq.capacity, tq.expired_at, tq.userId, u.email,d.path from takeout_queue tq
-            inner join user u
-            on u.id = tq.userId
-            inner join drive d
-            on d.id = tq.userId
-            limit ${limit}
-        `;
+                                                inner join user u
+                                                on u.id = tq.userId
+                                                inner join drive d
+                                                on d.userId = tq.userId
+                                                where tq.finish = false
+                                                limit ${limit}`;
         worker.send(
             { tasks: results }
         )
@@ -47,7 +47,7 @@ const updateTakeoutStatus = async (takeoutId,takeoutResultPath) => {
     let expired_at = new Date();
     expired_at = new Date(expired_at.setHours(expired_at.getHours() + 9)); // prisma utc<->ktc 보정값
     expired_at.setDate(expired_at.getDate() + 7); // 7일뒤에 만료
-
+    console.log(takeoutId)
     await prisma.takeout_queue.update({
         where:{
             id: takeoutId
@@ -72,12 +72,17 @@ const updateTakeoutStatus = async (takeoutId,takeoutResultPath) => {
 
 //event handler
 worker.on('message',async (m) => {
-    console.log(m);
-    if(m.success){
+    console.log("from child process",m);
+    if(m.success && !m.finish){
         await updateTakeoutStatus(m.taskout_queue_id, m.takeoutResultPath);
     }
-    //다음 작업 가져오기
-    start();
+    else{
+        //다음 작업 가져오기
+        setTimeout(()=>{
+            start();
+        },3000)
+    }
+    
 })
 
 

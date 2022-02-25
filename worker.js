@@ -87,18 +87,25 @@ async function main(tasks) {
                 threads.delete(worker);
                 if (threads.size === 0) {
                     console.log(curTaskIndex,"번 작업이 끝났음")
+                    process.send({
+                        taskout_queue_id: curTask.id,
+                        success: true,
+                        message: `${curTask.id} 작업이 완료되었습니다`,
+                        takeoutResultPath
+                    });
                     if(++curTaskIndex == tasks.length){
                         process.send({
                             success: true,
+                            finish: true,
                             message: "전체 작업이 잘 끝났음"
                         });
                     }else{
-                        process.send({
-                            taskout_queue_id: curTask.id,
-                            success: true,
-                            message: `${curTask.id} 작업이 완료되었습니다`,
-                            takeoutResultPath
-                        });
+                        // process.send({
+                        //     taskout_queue_id: curTask.id,
+                        //     success: true,
+                        //     message: `${curTask.id} 작업이 완료되었습니다`,
+                        //     takeoutResultPath
+                        // });
                         main(tasks);
                     }
                 }
@@ -167,15 +174,16 @@ async function worker(){
 
 //이벤트 리스너
 process.on('message', async (m) => {
-    
-    // console.log(m);
+    console.log(m);
     if (m.tasks.length == 0) {
         process.send({
             success: true,
+            finish: true,
             message: "수행할 테스크가 0개 입니다. 다시 보내주세요"
         });
+    }else{
+        console.log("takeout 태스크 메인 프로세스에서 수신",m.tasks);
+        curTaskIndex = 0;
+        await main(m.tasks);
     }
-    console.log("takeout 태스크 메인 프로세스에서 수신 ",m.tasks);
-    curTaskIndex = 0;
-    await main(m.tasks);
 })
