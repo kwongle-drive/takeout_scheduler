@@ -53,10 +53,12 @@ const updateTakeoutStatus = async (takeoutId,takeoutResultPath) => {
         }
     })
     for(let i = 0 ; i < takeoutResultPath.length ; i++){
+        console.log(takeoutResultPath[i])
         await prisma.takeout_result_path.create({
             data:{
                 takeoutId,
-                path: takeoutResultPath[i]
+                path: takeoutResultPath[i].path,
+                size: parseFloat((takeoutResultPath[i].size / 1000_000_000).toFixed(2))
             }
         })
     }

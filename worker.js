@@ -80,7 +80,7 @@ async function main(tasks) {
         for (let worker of threads) {
 
             worker.on('message', (value) => { //worker가 작업을 마치고 생성된 zipfilename을 전송한 것을 수신함
-                takeoutResultPath.push(value.zipFileName);
+                takeoutResultPath.push({path :value.zipFileName, size : value.size});
             });
 
             worker.on('exit', () => {
@@ -151,7 +151,10 @@ async function worker(){
     output.on('close', function () {
         // console.log(archive.pointer() + ' total bytes');
         // console.log('archiver has been finalized and the output file descriptor has closed.');
-        parentPort.postMessage({ zipFileName });
+        parentPort.postMessage({ 
+                zipFileName,
+                size: archive.pointer() 
+        });
         console.log("TASK INDEX : " + curTaskIndex + " [" + threadId +"]번 쓰레드 작업 종료");
     });
 

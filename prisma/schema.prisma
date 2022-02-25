@@ -34,6 +34,7 @@ model takeout_result_path {
   USE_YN        Boolean       @default(true)
   path          String        @db.VarChar(1000)
   takeoutId     Int
+  size          Float
   takeout_queue takeout_queue @relation(fields: [takeoutId], references: [id])
 
   @@index([takeoutId], map: "takeout_result_path_takeoutId_fkey")
