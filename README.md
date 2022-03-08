@@ -23,3 +23,10 @@
 
 ### 참고 이미지
 ![Untitled Diagram drawio (1)](https://user-images.githubusercontent.com/22045187/155679262-7dad12aa-037e-4781-8d91-7a7f1ce1c15e.png)
+
+
+## 적용된 성능 개선 방안
+1. thread를 이용하여  작업 시간 단축(cpu core개수에 비례해서 성능 증가) 
+2. 데이터베이스에서 미리 N개를 가져와 메모리에 큐로 저장함으로써 데이터베이스에 요청하고 응답받는 시간 최적화
+3. main 프로세스가 worker 프로세스에게 작업을 부여할 때 매번 fork()로 만드는게 아니라 fork()는 한번만 하고 메시지를 주고받는 형식(IPC을 채택함으로써 프로세스가 실행되는데 걸리는 비용 절약
+4. [Stream](https://benkwon.tistory.com/6)을 이용하여 메모리 최적화
