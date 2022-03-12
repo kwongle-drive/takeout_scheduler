@@ -30,3 +30,28 @@
 2. 데이터베이스에서 미리 N개를 가져와 메모리에 큐로 저장함으로써 데이터베이스에 요청하고 응답받는 시간 최적화
 3. main 프로세스가 worker 프로세스에게 작업을 부여할 때 매번 fork()로 만드는게 아니라 fork()는 한번만 하고 메시지를 주고받는 형식(IPC을 채택함으로써 프로세스가 실행되는데 걸리는 비용 절약
 4. [Stream](https://benkwon.tistory.com/6)을 이용하여 메모리 최적화
+
+## .env 설정
+```
+# DRIVE PATH
+DRIVE_PATH=C:\Users\userId\...\kwongle_drive_main_server\drives
+
+
+# TAKEOUT PATH
+TAKEOUT_PATH=C:\Users\userId\...t\kwongle_drive_main_server\takeout
+
+# DATABSE
+DATABASE_HOST=localhost
+DATABASE_ID=root
+DATABASE_PASS=root
+
+
+# This was inserted by `prisma init`:
+# Environment variables declared in this file are automatically made available to Prisma.
+# See the documentation for more detail: https://pris.ly/d/prisma-schema#accessing-environment-variables-from-the-schema
+
+# Prisma supports the native connection string format for PostgreSQL, MySQL, SQLite, SQL Server, MongoDB (Preview) and CockroachDB (Preview).
+# See the documentation for all the connection string options: https://pris.ly/d/connection-strings
+
+DATABASE_URL="mysql://root:root@localhost:3306/kwongledrive"
+```
